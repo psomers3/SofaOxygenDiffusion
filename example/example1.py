@@ -2,10 +2,15 @@
 import Sofa
 import SofaRuntime
 import numpy as np
-from qtpy.QtWidgets import *
-from qtpy.QtCore import *
-from QSofaGLViewTools import QSofaGLView, QSofaViewKeyboardController
+import sys, os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from SofaOxygenDiffusion.SofaUptakeForceField import UptakeForceField
+
+
+if __name__ == '__main__':
+    from qtpy.QtWidgets import *
+    from qtpy.QtCore import *
+    from QSofaGLViewTools import QSofaGLView, QSofaViewKeyboardController
 
 
 def createScene(node):
@@ -30,8 +35,8 @@ def createScene(node):
     node.addObject('FreeMotionAnimationLoop')
     node.addObject('GenericConstraintSolver', maxIterations=1000, tolerance=0.0001)
 
-    mesh=node.addObject('MeshGmshLoader', name='3D_mesh', filename='TetraMesh.msh')
-    mesh.position=mesh.position.array()*1e-6
+    mesh = node.addObject('MeshGmshLoader', name='3D_mesh', filename='TetraMesh.msh')
+    mesh.position = mesh.position.array()*1e-6
     topology = node.addObject('TetrahedronSetTopologyContainer', name='topology', src='@3D_mesh', tags='mechanics')
     topology.init()  # done so we can read how many vertices
     node.addObject('MechanicalObject', template='Vec3d', name='3D_DOFs', src='@3D_mesh', tags='mechanics')
@@ -42,7 +47,6 @@ def createScene(node):
                           rayleighMass=0.1, trapezoidalScheme=False)
     oxygen_node.addObject('CGLinearSolver', name="CG", iterations=1000, tolerance=1.0e-10, threshold=0, tags="oxygen")
     # manually create a mechanical object to initialize values to zero.
-    global temps
     loaded_temps = np.full(topology.nbPoints.value, 0)
     temps = oxygen_node.addObject('MechanicalObject', template="Vec1d", name='oxygen_DOFs',
                                   position=loaded_temps.tolist(), tags="oxygen")
@@ -53,12 +57,11 @@ def createScene(node):
     tumor_indices = tumor_roi.tetrahedronIndices.array()
 
     uptake_coef_array = np.full(len(topology_tetra), 0, dtype=np.float32)
-    uptake_coef_array[tumor_indices] = np.full(len(tumor_indices), 0.2, dtype=np.float32)
+    uptake_coef_array[tumor_indices] = np.full(len(tumor_indices), 0.5, dtype=np.float32)
 
-    ForceField = UptakeForceField(name="UptakeField")
-    ForceField.set_tetra_uptake_coefficients(uptake_coef_array)
-    global FEM
-    FEM = oxygen_node.addObject(ForceField)
+    force_field = UptakeForceField(name="UptakeField")
+    force_field.set_tetra_uptake_coefficients(uptake_coef_array)
+    oxygen_node.addObject(force_field)
     oxygen_node.addObject("TetrahedronDiffusionFEMForceField", name='diffusion', template='Vec1d',
                           tagMechanics='mechanics', tags='oxygen')
     oxygen_node.addObject('UncoupledConstraintCorrection')
@@ -67,11 +70,10 @@ def createScene(node):
                           printLog=False, tags="oxygen")
 
     visual_node = oxygen_node.addChild('visual_node')
-    global texture
-    texture = visual_node.addObject('TextureInterpolation', template="Vec1d", name="EngineInterpolation",
-                                    input_states="@../oxygen_DOFs.position",
-                                    input_coordinates="@../../3D_DOFs.position",
-                                    min_value=0, max_value=2.5, manual_scale=1, drawPotentiels=True, showIndicesScale=0)
+    visual_node.addObject('TextureInterpolation', template="Vec1d", name="EngineInterpolation",
+                          input_states="@../oxygen_DOFs.position",
+                          input_coordinates="@../../3D_DOFs.position",
+                          manual_scale=0, drawPotentiels=True, showIndicesScale=0)
     visual_node.addObject('OglModel', template="Vec3d", name="oglPotential",
                           texcoords="@EngineInterpolation.output_coordinates", texturename="textures/heatColor.bmp",
                           scale3d=[1, 1, 1],
@@ -99,9 +101,8 @@ def createScene(node):
     oxygen_node.addObject('FixedConstraint', name='flow_in', template="Vec1d", indices="@../box-links.indices")
 
     for i in range(len(temps.position.array())):
-        stopper = oxygen_node.addObject('StopperConstraint', name='oxygen_low', template="Vec1d", index=i, min=1e-6,
-                                        max=200)
-
+        oxygen_node.addObject('StopperConstraint', name='oxygen_low'+str(i), template="Vec1d", index=i, min=1e-6,
+                              max=200)
     return node
 
 
@@ -118,12 +119,6 @@ if __name__ == '__main__':
         def step_sim(self):
             if not self.running:
                 return
-            max = np.max(temps.position.array())
-            min = np.min(temps.position.array())
-            if max > min:
-                texture.min_value = min
-                texture.max_value = max
-            print(f'min: {min}    max: {max}')
             self.blockSignals(True)
             Sofa.Simulation.animate(self.node, self.node.getDt())
             Sofa.Simulation.updateVisual(self.node)
