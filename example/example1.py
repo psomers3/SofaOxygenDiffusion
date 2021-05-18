@@ -43,13 +43,13 @@ def createScene(node):
     node.addObject('TetrahedronSetGeometryAlgorithms', template='Vec3d', name='GeomAlgo', tags='mechanics')
 
     oxygen_node = node.addChild('oxygen')
-    oxygen_node.addObject('EulerImplicitSolver', name="Euler", firstOrder=True, tags="oxygen", rayleighStiffness=0.1,
-                          rayleighMass=0.1, trapezoidalScheme=False)
+    oxygen_node.addObject('EulerImplicitSolver', name="Euler", firstOrder=True, tags="oxygen", rayleighStiffness=0.0,
+                          rayleighMass=0.0, trapezoidalScheme=False)
     oxygen_node.addObject('CGLinearSolver', name="CG", iterations=1000, tolerance=1.0e-10, threshold=0, tags="oxygen")
     # manually create a mechanical object to initialize values to zero.
-    loaded_temps = np.full(topology.nbPoints.value, 0)
-    temps = oxygen_node.addObject('MechanicalObject', template="Vec1d", name='oxygen_DOFs',
-                                  position=loaded_temps.tolist(), tags="oxygen")
+    loaded_02 = np.full(topology.nbPoints.value, 0)
+    oxygen = oxygen_node.addObject('MechanicalObject', template="Vec1d", name='oxygen_DOFs',
+                                   position=loaded_02.tolist(), tags="oxygen")
     tumor_roi = node.addObject('BoxROI', name="tumor", box=[-1e-4, -1e-4, -1e-4, 1e-4, 1e-4, 1e-4], drawBoxes=True,
                                position="@3D_DOFs.position", tetrahedra="@topology.tetrahedra")
     tumor_roi.init()
@@ -95,12 +95,12 @@ def createScene(node):
 
     # set initial temp on left side
     links.init()
-    current_temp = temps.position.array().copy()
+    current_temp = oxygen.position.array().copy()
     current_temp[links.indices.array()] = 2.5
-    temps.position = current_temp.tolist()
+    oxygen.position = current_temp.tolist()
     oxygen_node.addObject('FixedConstraint', name='flow_in', template="Vec1d", indices="@../box-links.indices")
 
-    for i in range(len(temps.position.array())):
+    for i in range(len(oxygen.position.array())):
         oxygen_node.addObject('StopperConstraint', name='oxygen_low'+str(i), template="Vec1d", index=i, min=1e-6,
                               max=200)
     return node
