@@ -7,14 +7,14 @@ from matlab import engine as matlab_engine
 import matlab
 
 
-class SimAnimator(QObject):
+class Simulator(QObject):
     run_matlab_step = Signal()
     run_sim_step = Signal()
     step_completed = Signal()
 
     def __init__(self, autostart=True):
-        super(SimAnimator, self).__init__()
-        self.sim = Simulation(diffusion_coef=4e-3)
+        super(Simulator, self).__init__()
+        self.sim = Simulation(diffusion_coef=1e6)
         self.forcefield = self.sim.uptake_force_field
         self.running = False
         self.request_stop = False
@@ -27,7 +27,7 @@ class SimAnimator(QObject):
             self.begin()
 
     def run_matlab(self):
-        oxygen = np.array(self.sim.oxygen.position.array())
+        oxygen = self.sim.oxygen.position.array()
         tetra = self.sim.topology.tetrahedra.array()
         np_ox = np.zeros([len(tetra), 1])
         for i in range(0, len(tetra)):
@@ -39,10 +39,10 @@ class SimAnimator(QObject):
         self.eng.workspace['oxygen'] = mat_ox
         self.eng.funsim(nargout=0)
 
-        self.matlabuptakearray = self.eng.workspace['tetraUptakeCoefficient']
-        uptakearray = np.array((self.matlabuptakearray))
+        self.matlab_uptake_array = self.eng.workspace['tetraUptakeCoefficient']
+        uptake_array = np.array(self.matlab_uptake_array)
 
-        self.forcefield.set_tetra_uptake_coefficients(uptakearray)
+        self.forcefield.set_tetra_uptake_coefficients(uptake_array)
         if not self.request_stop:
             self.run_sim_step.emit()
         else:
@@ -65,8 +65,10 @@ class SimAnimator(QObject):
         else:
             self.running = False
 
-    def save_oxygen_to_file(self, filename='oxygen'):
-        np.save(self.sim.oxygen.position.array())
+    def save_oxygen_to_file(self, filename=None):
+        if filename is None:
+            filename = f"oxygen_at_{self.sim.root_node.getTime()}"
+        np.save(filename, self.sim.oxygen.position.array())
 
     def initialize(self):
         self.sim.initialize()
@@ -77,7 +79,7 @@ class SimAnimator(QObject):
 
 if __name__ == '__main__':
     app = QApplication(['sofa_app'])  # viewer engine
-    sim = SimAnimator()
+    sim = Simulator()
     sim.initialize()
 
     def key_pressed(event):

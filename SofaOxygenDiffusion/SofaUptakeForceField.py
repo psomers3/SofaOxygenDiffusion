@@ -5,32 +5,29 @@ from numba import jit
 
 
 @jit(nopython=True)
-def _addForce(f, c, c_prior, d_O2SaturationConstant, edgeUptakeCoefficient, edges):
-    x = c
-    o2_coef = d_O2SaturationConstant
+def _addForce(f, x, x_prior, o2_coef, edge_uptake_coefficients, edges):
     for i in range(0, len(edges)):
         v0 = edges[i][0]
         v1 = edges[i][1]
-        c_prior_average = (c_prior[v1] + c_prior[v0]) / 2
+        c_prior_average = (x_prior[v1] + x_prior[v0]) / 2
         x_average = (x[v1] + x[v0]) / 2  # average the values on each vertex
-        dp2 = (edgeUptakeCoefficient[i] / (o2_coef + c_prior_average)) * x_average
+        dp2 = (edge_uptake_coefficients[i] / (o2_coef + c_prior_average)) * x_average
         f[v1] += dp2
         f[v0] += dp2
-
     return f
 
 
 @jit(nopython=True)
-def _addDForce(df, dx, c_prior, kFactor, o2_coef, edgeUptakeCoefficient, edges):
-        for i in range(len(edges)):
-            v0 = edges[i][0]
-            v1 = edges[i][1]
-            dx_average = (dx[v1] + dx[v0]) / 2  # average th values on each vertex
-            c_average = (c_prior[v1] + c_prior[v0]) / 2
-            dp2 = (edgeUptakeCoefficient[i] / (o2_coef + c_average)) * dx_average * kFactor
-            df[v1] += dp2
-            df[v0] += dp2
-        return df
+def _addDForce(df, dx, x_prior, k_factor, o2_coef, edge_uptake_coefficients, edges):
+    for i in range(len(edges)):
+        v0 = edges[i][0]
+        v1 = edges[i][1]
+        dx_average = (dx[v1] + dx[v0]) / 2  # average the values on each vertex
+        c_average = (x_prior[v1] + x_prior[v0]) / 2
+        dp2 = (edge_uptake_coefficients[i] / (o2_coef + c_average)) * dx_average * k_factor
+        df[v1] += dp2
+        df[v0] += dp2
+    return df
 
 
 class UptakeForceField(Sofa.Core.ForceFieldVec1d):
@@ -101,11 +98,13 @@ class UptakeForceField(Sofa.Core.ForceFieldVec1d):
             self.c_prior = self.mechanicalState.position.array().copy()
             self.sim_time = self.getContext().getTime()
         with force.writeableArray() as f:
-            return _addForce(f, c.value, self.c_prior, self.d_O2SaturationConstant, self.edgeUptakeCoefficient, self.edges)
+            return _addForce(f, c.value, self.c_prior, self.d_O2SaturationConstant, self.edgeUptakeCoefficient,
+                             self.edges)
 
     def addDForce(self, params, dforce, dc):
         if self.sim_time != self.getContext().getTime():
             self.c_prior = self.mechanicalState.position.array().copy()
             self.sim_time = self.getContext().getTime()
         with dforce.writeableArray() as df:
-            return _addDForce(df, dc.value, self.c_prior, params['kFactor'], self.d_O2SaturationConstant, self.edgeUptakeCoefficient, self.edges)
+            return _addDForce(df, dc.value, self.c_prior, params['kFactor'], self.d_O2SaturationConstant,
+                              self.edgeUptakeCoefficient, self.edges)
