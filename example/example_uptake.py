@@ -4,7 +4,7 @@ import SofaRuntime
 import numpy as np
 import sys, os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from SofaOxygenDiffusion.SofaUptakeForceField import UptakeForceField
+from SofaOxygenDiffusion import UptakeForceField
 
 
 if __name__ == '__main__':

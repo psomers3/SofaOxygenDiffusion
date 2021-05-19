@@ -3,8 +3,8 @@ import Sofa
 import SofaRuntime
 import numpy as np
 import sys, os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from SofaOxygenDiffusion.SofaUptakeForceField import UptakeForceField
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))  # for running without installing
+from SofaOxygenDiffusion import UptakeForceField
 
 
 class Simulation(object):
