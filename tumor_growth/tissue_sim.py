@@ -117,6 +117,10 @@ class Simulation(object):
         Sofa.Simulation.updateVisual(self.root_node)
 
     def solve_steady_state(self):
+        """
+        Solve system for steady state
+        :return: numpy array of tetrahedron oxygen values averaged from each vertex
+        """
         prev_sol = self.oxygen.position.array().copy()
         delta = 1e9
         while delta > self.steady_state_threshold:
@@ -125,3 +129,12 @@ class Simulation(object):
             delta = np.max(np.abs(curr_sol - prev_sol))
             prev_sol = curr_sol.copy()
         Sofa.Simulation.updateVisual(self.root_node)
+
+        oxygen = self.oxygen.position.array()
+        tetra = self.topology.tetrahedra.array()
+        np_ox = np.zeros([len(tetra), 1])
+        for i in range(0, len(tetra)):
+            for j in range(0, 4):
+                index = tetra[i][j]
+                np_ox[i] += 0.25 * oxygen[index]
+        return np_ox
