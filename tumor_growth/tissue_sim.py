@@ -10,7 +10,7 @@ from SofaOxygenDiffusion import UptakeForceField
 class Simulation(object):
     def __init__(self, stl_file='tumor_mesh.msh',
                  dt=10,
-                 diffusion_coef=1e6,
+                 diffusion_coef=1e-9,
                  o2_supply=60,
                  steady_state_threshold=0.005):
         self.stl_file = stl_file
@@ -123,7 +123,7 @@ class Simulation(object):
         """
         prev_sol = self.oxygen.position.array().copy()
         delta = 1e9
-        while delta > self.steady_state_threshold:
+        while delta > self.steady_state_threshold and delta != 0:
             Sofa.Simulation.animate(self.root_node, self.root_node.getDt())
             curr_sol = self.oxygen.position.array()
             delta = np.max(np.abs(curr_sol - prev_sol))

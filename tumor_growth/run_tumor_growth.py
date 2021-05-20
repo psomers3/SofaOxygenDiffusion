@@ -33,7 +33,7 @@ class SofaSim(QObject):
 
     def __init__(self):
         super(SofaSim, self).__init__()
-        self.sim = Simulation(diffusion_coef=1e6)
+        self.sim = Simulation(diffusion_coef=1e-4)
         self.forcefield = self.sim.uptake_force_field
         self.stop_requested = False
 
